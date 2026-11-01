@@ -57,6 +57,10 @@ Raw total supply: 3000000000000006
 
 The displayed supply is `3000000000000006 / 10^6`.
 
+## Live-run evidence
+
+![Inspector live-run output](contract-inspector-run.png.png)
+
 ## Tests
 
 ```powershell
