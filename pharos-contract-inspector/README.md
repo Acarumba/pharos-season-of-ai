@@ -61,7 +61,7 @@ The test matrix covers successful uint and string decoding, malformed responses,
 ## Limitations
 
 - The implementation depends on the public MCP endpoint and its rate limit.
-- The installed MCP SDK's Streamable HTTP transport currently stalls in this environment after session startup; the endpoint itself is healthy and the live reads above were independently verified through Chain MCP.
+- The exact documented command was tested with one persistent initialized `ClientSession`; the installed MCP SDK's Streamable HTTP transport stalls on the first `get_block_number` call in this environment. The endpoint itself is healthy and the live reads above were independently verified through the Chain MCP tool interface, not claimed as a successful standalone-script run.
 - The inspector is intentionally read-only and does not provide transaction or proof-link generation.
 
 ## Walkthrough

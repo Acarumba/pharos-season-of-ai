@@ -28,11 +28,8 @@ READS = {
 }
 
 
-async def call_tool(name: str, arguments: dict) -> dict:
-    async with streamable_http_client(MCP_URL) as (read_stream, write_stream):
-        async with ClientSession(read_stream, write_stream) as session:
-            await session.initialize()
-            response = await asyncio.wait_for(session.call_tool(name, arguments), timeout=15)
+async def call_tool(session: ClientSession, name: str, arguments: dict) -> dict:
+    response = await asyncio.wait_for(session.call_tool(name, arguments), timeout=15)
     text = next((item.text for item in response.content if hasattr(item, "text")), None)
     if not text:
         raise RuntimeError(f"{name} returned no text content")
@@ -44,31 +41,35 @@ async def call_tool(name: str, arguments: dict) -> dict:
 
 async def inspect() -> None:
     print(f"Connecting to {MCP_URL}...", flush=True)
-    print("Reading block number...", flush=True)
-    block_response = await call_tool("get_block_number", {})
-    block_number = int(block_response["blockNumber"])
+    async with streamable_http_client(MCP_URL) as (read_stream, write_stream):
+        async with ClientSession(read_stream, write_stream) as session:
+            await asyncio.wait_for(session.initialize(), timeout=15)
+            print("Reading block number...", flush=True)
+            block_response = await call_tool(session, "get_block_number", {})
+            block_number = int(block_response["blockNumber"])
 
-    values = {}
-    for label, read in READS.items():
-        print(f"Reading {label}...", flush=True)
-        response = await call_tool(
-            "eth_call",
-            {"transaction": {"to": CONTRACT, "data": read.selector}, "block": block_number},
-        )
-        raw = response.get("result")
-        if not isinstance(raw, str) or raw == "0x":
-            raise RuntimeError(f"{label} returned empty data")
-        values[label] = (raw, read.decoder(raw))
+            values = {}
+            for label, read in READS.items():
+                print(f"Reading {label}...", flush=True)
+                response = await call_tool(
+                    session,
+                    "eth_call",
+                    {"transaction": {"to": CONTRACT, "data": read.selector}, "block": block_number},
+                )
+                raw = response.get("result")
+                if not isinstance(raw, str) or raw == "0x":
+                    raise RuntimeError(f"{label} returned empty data")
+                values[label] = (raw, read.decoder(raw))
 
-    decimals = values["decimals"][1]
-    print("Network: Pharos Pacific Mainnet (chain ID 1672)")
-    print(f"Contract address: {CONTRACT}")
-    print(f"Block number: {block_number}")
-    print(f"Name: {values['name'][1]}")
-    print(f"Symbol: {values['symbol'][1]}")
-    print(f"Decimals: {decimals}")
-    print(f"Total supply: {format_units(values['totalSupply'][1], decimals)} {values['symbol'][1]}")
-    print(f"Raw total supply: {values['totalSupply'][1]}")
+            decimals = values["decimals"][1]
+            print("Network: Pharos Pacific Mainnet (chain ID 1672)")
+            print(f"Contract address: {CONTRACT}")
+            print(f"Block number: {block_number}")
+            print(f"Name: {values['name'][1]}")
+            print(f"Symbol: {values['symbol'][1]}")
+            print(f"Decimals: {decimals}")
+            print(f"Total supply: {format_units(values['totalSupply'][1], decimals)} {values['symbol'][1]}")
+            print(f"Raw total supply: {values['totalSupply'][1]}")
 
 
 if __name__ == "__main__":
