@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"my-mcp-server-3e9af3e9": {
+			"url": "https://mcp.pharos.xyz/mcp",
+			"type": "http"
+		}
+	},
+	"inputs": []
+}
