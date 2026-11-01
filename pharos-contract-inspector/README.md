@@ -83,11 +83,3 @@ The test matrix covers successful uint and string decoding, malformed responses,
 4. Compare the raw and decimal-adjusted total supply.
 5. Run the unit test command.
 
-## Acceptance checklist
-
-- [x] Four values requested from one deployed public contract through Chain MCP evidence.
-- [x] Contract address and associated block displayed in the sample output.
-- [x] Raw values formatted with token decimals and labels.
-- [x] README includes contract, execution instructions, architecture, sample output, tests, and limitations.
-- [x] Repository URL: https://github.com/Acarumba/pharos-season-of-ai
-- [ ] Shareable Pharos proof link: not supported by the available MCP tools.
