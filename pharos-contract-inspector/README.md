@@ -14,6 +14,13 @@ Minimal read-only inspector for the Pharos Pacific Mainnet USDC contract.
 
 `src/contract_inspector.py` connects through the public Pharos Chain MCP, pins a block, and calls the ERC-20 selectors for `name`, `symbol`, `totalSupply`, and `decimals`. `src/decode.py` validates ABI responses and applies decimal formatting. No signing, wallet, or transaction broadcast is used.
 
+## Requirement Evidence
+
+1. **Three or more contract values:** the live read includes `name`, `symbol`, `totalSupply`, and `decimals` from the same USDC contract.
+2. **Contract and block attribution:** every read uses the pinned block shown in the sample output, alongside the contract address.
+3. **Human-readable formatting:** `totalSupply` is divided by `10^decimals` and displayed with the `USDC` symbol; raw values remain labelled for comparison.
+4. **Short execution guide:** prerequisites, installation, run instructions, and sample output are included below.
+
 ## Prerequisites
 
 - Python 3.14 or newer
@@ -78,5 +85,5 @@ The test matrix covers successful uint and string decoding, malformed responses,
 - [x] Contract address and associated block displayed in the sample output.
 - [x] Raw values formatted with token decimals and labels.
 - [x] README includes contract, execution instructions, architecture, sample output, tests, and limitations.
-- [ ] Repository URL: not available in the local workspace.
+- [x] Repository URL: https://github.com/Acarumba/pharos-season-of-ai
 - [ ] Shareable Pharos proof link: not supported by the available MCP tools.
