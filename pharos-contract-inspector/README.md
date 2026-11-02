@@ -1,5 +1,7 @@
 # Pharos Contract Inspector
 
+The policy gatekeeper is implemented separately in [pharos-policy-gatekeeper](../pharos-policy-gatekeeper/README.md).
+
 Minimal read-only inspector for the Pharos Pacific Mainnet USDC contract.
 
 ## Network and contract
