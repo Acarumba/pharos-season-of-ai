@@ -39,7 +39,7 @@ gatekeeper = PolicyGatekeeper.from_policy_file("policy.json", "audit.jsonl")
 decision, result = gatekeeper.execute(request, executor)
 ```
 
-Requests require `request_id`, `amount`, `address`, `contract`, and a timezone-aware ISO-8601 `requested_at`. Every decision is appended to the audit JSONL file before an allowed request reaches `executor`. A denied request returns without calling it. Malformed policy files and audit-write failures fail closed.
+Requests require `request_id`, `amount`, `address`, and `contract`. An optional `requested_at` field is validated as metadata but never controls enforcement. The policy window uses the gatekeeper's trusted clock; tests can inject a timezone-aware clock through `clock=`. Every decision is appended to the audit JSONL file before an allowed request reaches `executor`. A denied request returns without calling it. Malformed policy files and audit-write failures fail closed.
 
 The official Pharos Skill Engine is an agent instruction package that eventually runs `cast` or `forge`; it does not expose a Python runtime API. This gate belongs before that command executor. This project does not sign or broadcast real transactions.
 

@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable, Mapping
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+
+Clock = Callable[[], datetime]
+EVM_ADDRESS = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 
 class PolicyError(ValueError):
@@ -41,23 +46,33 @@ class Decision:
 class PolicyGatekeeper:
     """Evaluates requests and owns the only path to a supplied executor."""
 
-    def __init__(self, policy: Mapping[str, Any], audit_path: str | os.PathLike[str]):
+    def __init__(
+        self,
+        policy: Mapping[str, Any],
+        audit_path: str | os.PathLike[str],
+        clock: Clock | None = None,
+    ):
         self._policy = _validate_policy(policy)
         self._audit_path = Path(audit_path)
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     @classmethod
     def from_policy_file(
-        cls, policy_path: str | os.PathLike[str], audit_path: str | os.PathLike[str]
+        cls,
+        policy_path: str | os.PathLike[str],
+        audit_path: str | os.PathLike[str],
+        clock: Clock | None = None,
     ) -> "PolicyGatekeeper":
         try:
             with Path(policy_path).open(encoding="utf-8") as policy_file:
                 policy = json.load(policy_file)
         except (OSError, json.JSONDecodeError) as exc:
             raise PolicyError(f"cannot load policy: {exc}") from exc
-        return cls(policy, audit_path)
+        return cls(policy, audit_path, clock=clock)
 
     def evaluate(self, request: Mapping[str, Any]) -> Decision:
-        timestamp = datetime.now().astimezone().isoformat()
+        trusted_now = self._trusted_now()
+        timestamp = trusted_now.isoformat()
         request_id = request.get("request_id", "<missing>") if isinstance(request, Mapping) else "<malformed>"
         if not isinstance(request_id, str) or not request_id:
             request_id = "<invalid>"
@@ -65,7 +80,7 @@ class PolicyGatekeeper:
         violations: list[str] = []
         try:
             normalized = _validate_request(request)
-            violations.extend(self._rule_violations(normalized))
+            violations.extend(self._rule_violations(normalized, trusted_now))
         except (PolicyError, TypeError) as exc:
             violations.append(f"input: {exc}")
 
@@ -84,7 +99,7 @@ class PolicyGatekeeper:
             return decision, None
         return decision, executor(request)
 
-    def _rule_violations(self, request: dict[str, Any]) -> list[str]:
+    def _rule_violations(self, request: dict[str, Any], trusted_now: datetime) -> list[str]:
         policy = self._policy
         violations: list[str] = []
         if request["amount"] > policy["spend_limit"]:
@@ -99,13 +114,22 @@ class PolicyGatekeeper:
             violations.append(f"contract_allowlist: contract {request['contract']} is not allowed")
 
         window = policy["time_window"]
-        request_time = request["requested_at"].astimezone(window["zone"]).time().replace(microsecond=0)
+        request_time = trusted_now.astimezone(window["zone"]).time().replace(microsecond=0)
         start, end = window["start"], window["end"]
         if not start <= request_time < end:
             violations.append(
                 f"time_window: {request_time.isoformat()} is outside [{start.isoformat()}, {end.isoformat()})"
             )
         return violations
+
+    def _trusted_now(self) -> datetime:
+        try:
+            trusted_now = self._clock()
+        except Exception as exc:
+            raise PolicyError(f"trusted clock unavailable: {exc}") from exc
+        if not isinstance(trusted_now, datetime) or trusted_now.tzinfo is None:
+            raise PolicyError("trusted clock must return a timezone-aware datetime")
+        return trusted_now
 
     def _write_audit(self, decision: Decision) -> None:
         try:
@@ -146,20 +170,21 @@ def _validate_policy(policy: Mapping[str, Any]) -> dict[str, Any]:
 def _validate_request(request: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(request, Mapping):
         raise PolicyError("request must be an object")
-    required = ("request_id", "amount", "address", "contract", "requested_at")
+    required = ("request_id", "amount", "address", "contract")
     missing = [field for field in required if field not in request]
     if missing:
         raise PolicyError(f"missing required fields: {', '.join(missing)}")
     if not isinstance(request["request_id"], str) or not request["request_id"]:
         raise PolicyError("request_id must be a non-empty string")
-    requested_at = request["requested_at"]
-    if isinstance(requested_at, str):
-        try:
-            requested_at = datetime.fromisoformat(requested_at.replace("Z", "+00:00"))
-        except ValueError as exc:
-            raise PolicyError("requested_at must be an ISO-8601 timestamp") from exc
-    if not isinstance(requested_at, datetime) or requested_at.tzinfo is None:
-        raise PolicyError("requested_at must include a timezone")
+    if "requested_at" in request:
+        requested_at = request["requested_at"]
+        if isinstance(requested_at, str):
+            try:
+                requested_at = datetime.fromisoformat(requested_at.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise PolicyError("requested_at must be an ISO-8601 timestamp") from exc
+        if not isinstance(requested_at, datetime) or requested_at.tzinfo is None:
+            raise PolicyError("requested_at must include a timezone")
     return {
         "amount": _decimal(request["amount"], "amount"),
         "address": _address(request["address"], "address"),
@@ -169,12 +194,14 @@ def _validate_request(request: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _decimal(value: Any, field: str) -> Decimal:
-    if isinstance(value, bool):
-        raise PolicyError(f"{field} must be a decimal string or integer")
+    if isinstance(value, bool) or isinstance(value, float):
+        raise PolicyError(f"{field} must be a decimal string, integer, or Decimal")
+    if not isinstance(value, (str, int, Decimal)):
+        raise PolicyError(f"{field} must be a decimal string, integer, or Decimal")
     try:
-        result = Decimal(str(value))
-    except (InvalidOperation, ValueError) as exc:
-        raise PolicyError(f"{field} must be a decimal string or integer") from exc
+        result = Decimal(value)
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise PolicyError(f"{field} must be a decimal string, integer, or Decimal") from exc
     if not result.is_finite() or result < 0:
         raise PolicyError(f"{field} must be finite and non-negative")
     return result
@@ -187,8 +214,8 @@ def _addresses(values: Any, field: str) -> frozenset[str]:
 
 
 def _address(value: Any, field: str) -> str:
-    if not isinstance(value, str) or not value or not value.startswith("0x"):
-        raise PolicyError(f"{field} must be a non-empty 0x-prefixed string")
+    if not isinstance(value, str) or not EVM_ADDRESS.fullmatch(value):
+        raise PolicyError(f"{field} must be a 0x-prefixed 40-hex-character EVM address")
     return value.lower()
 
 
