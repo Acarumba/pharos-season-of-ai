@@ -42,6 +42,21 @@ class PolicyGatekeeperTests(unittest.TestCase):
         self.assertEqual(result, "done")
         self.assertEqual(len(calls), 1)
 
+    def test_requested_at_is_optional_and_executor_runs_once(self):
+        request = {
+            "request_id": "req-without-timestamp",
+            "amount": "10.00",
+            "address": ADDRESS,
+            "contract": CONTRACT,
+        }
+        calls = []
+        decision, result = self.gatekeeper.execute(
+            request, lambda submitted_request: calls.append(submitted_request) or "done"
+        )
+        self.assertEqual(decision.outcome, "allow")
+        self.assertEqual(result, "done")
+        self.assertEqual(calls, [request])
+
     def test_spend_limit_deny(self):
         decision, result = self.gatekeeper.execute({**REQUEST, "amount": "100.01"}, lambda _: self.fail())
         self.assertEqual((decision.outcome, decision.deciding_rule), ("deny", "spend_limit"))

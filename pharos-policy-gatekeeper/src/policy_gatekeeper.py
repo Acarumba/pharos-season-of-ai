@@ -189,7 +189,6 @@ def _validate_request(request: Mapping[str, Any]) -> dict[str, Any]:
         "amount": _decimal(request["amount"], "amount"),
         "address": _address(request["address"], "address"),
         "contract": _address(request["contract"], "contract"),
-        "requested_at": requested_at,
     }
 
 
