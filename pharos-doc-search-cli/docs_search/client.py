@@ -123,5 +123,5 @@ class DocsClient:
 
     @staticmethod
     def _markdown_answer(body: str) -> str:
-        sections = re.split(r"^#\s+(?:Suggested Follow-up Questions|Sources)\s*$", body, flags=re.MULTILINE | re.IGNORECASE)
+        sections = re.split(r"^#\s+(?:Suggested Follow-up Questions|Sources)\s*:?\s*$", body, flags=re.MULTILINE | re.IGNORECASE)
         return sections[0].strip()

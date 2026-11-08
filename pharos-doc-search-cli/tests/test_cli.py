@@ -69,7 +69,7 @@ def test_json_output_is_valid_and_preserves_query():
 
 
 def test_json_markdown_answer_excludes_service_sections():
-    body = {"answer": "# Answer\nUse the docs.\n\n# Sources\n- [Docs](https://docs.pharos.xyz/docs.md)", "sources": [{"title": "Docs", "url": "https://docs.pharos.xyz/docs.md"}]}
+    body = {"answer": "# Answer\nUse the docs.\n\n# Suggested Follow-up Questions:\n- Ask more\n\n# Sources\n- [Docs](https://docs.pharos.xyz/docs.md)", "sources": [{"title": "Docs", "url": "https://docs.pharos.xyz/docs.md"}]}
     result = FakeClient(json.dumps(body)).search("question")
     assert result.answer == "# Answer\nUse the docs."
 
