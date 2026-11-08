@@ -1,0 +1,1 @@
+"""Pharos on-chain alert bot package."""
