@@ -36,7 +36,7 @@ py -m streamlit run app.py
 
 Open the URL printed by Streamlit, usually `http://localhost:8501`.
 
-The Start button begins monitoring. The Stop button pauses polling without deleting the SQLite checkpoint. A start block of `0` resumes the persisted cursor; a positive start block begins at that block. The default database is `data/events.sqlite3`, which is ignored by git.
+The Start button begins a fresh monitoring session: it clears the previous event feed and persisted cursor before initializing. The Stop button pauses polling without deleting the current SQLite checkpoint. A start block of `0` begins at the current chain head; a positive start block begins at that block. The default database is `data/events.sqlite3`, which is ignored by git. If the application restarts without starting a new session, the engine can resume its persisted cursor.
 
 ## Configuration
 

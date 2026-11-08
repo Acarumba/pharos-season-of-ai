@@ -38,6 +38,11 @@ class EventStore:
         self.connection.execute("INSERT OR REPLACE INTO metadata(key,value) VALUES('cursor',?)", (str(block),))
         self.connection.commit()
 
+    def reset(self) -> None:
+        self.connection.execute("DELETE FROM events")
+        self.connection.execute("DELETE FROM metadata WHERE key='cursor'")
+        self.connection.commit()
+
     def add_event(self, event: TransferEvent) -> bool:
         cursor = self.connection.execute("""INSERT OR IGNORE INTO events
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", (event.event_key, event.transaction_hash,

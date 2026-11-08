@@ -62,14 +62,21 @@ with st.sidebar:
             if not contract.startswith("0x") or len(contract) != 42:
                 st.error("Enter a 20-byte contract address.")
             else:
+                previous = st.session_state.get("engine")
+                if previous is not None:
+                    previous.store.close()
+                store = EventStore(DATA_PATH)
+                store.reset()
                 candidate = MonitorEngine(
                     PharosMcpClient(os.getenv("PHAROS_MCP_URL", "https://mcp.pharos.xyz/mcp")),
-                    EventStore(DATA_PATH), contract, decimals=6, poll_interval=interval,
+                    store, contract, decimals=6, poll_interval=interval,
                 )
                 try:
-                    candidate.start(start_block=start_block or None, resume=not bool(start_block))
+                    candidate.start(start_block=start_block or None, resume=False)
                 except Exception as exc:
                     candidate.store.close()
+                    st.session_state.pop("engine", None)
+                    st.session_state.running = False
                     st.error(f"Could not connect to Pharos MCP: {exc}")
                 else:
                     st.session_state.engine = candidate

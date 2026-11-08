@@ -73,3 +73,15 @@ def test_restart_resumes_persisted_cursor() -> None:
         second.poll_once()
         assert client.log_calls[-1] == (11, 11)
         first.store.close()
+
+
+def test_reset_clears_events_and_cursor() -> None:
+    with TemporaryDirectory() as directory:
+        client = FakeClient()
+        engine = make_engine(client, directory)
+        engine.poll_once()
+        engine.store.set_cursor(99)
+        engine.store.reset()
+        assert engine.store.get_cursor() is None
+        assert engine.store.count() == 0
+        engine.store.close()
